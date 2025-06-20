@@ -8,7 +8,6 @@
 
 using namespace std;
 
-// Русский алфавит в UTF-8 (первая часть двухбайтовых последовательностей)
 const vector<pair<unsigned char, unsigned char>> RUS_UTF8 = {
     {0xD0, 0x90}, {0xD0, 0x91}, {0xD0, 0x92}, {0xD0, 0x93}, {0xD0, 0x94},
     {0xD0, 0x95}, {0xD0, 0x81}, {0xD0, 0x96}, {0xD0, 0x97}, {0xD0, 0x98},
@@ -26,7 +25,6 @@ const vector<pair<unsigned char, unsigned char>> RUS_UTF8 = {
     {0xD1, 0x8F}
 };
 
-// Частотность русских букв (от наиболее частых к менее частым)
 const vector<int> FREQUENT_LETTERS = { 12, 5, 0, 8, 13, 18, 19, 17, 2, 10, 9, 14, 3, 15, 20, 32, 21, 7, 23, 1, 4, 22, 11, 24, 6, 25, 31, 26, 27, 30, 28, 29, 16 };
 
 // Статистика частотности букв в русском языке (в %)
@@ -66,30 +64,31 @@ const map<int, double> LETTER_FREQUENCY = {
     {32, 1.98}  // Я
 };
 
-int findPos(unsigned char c1, unsigned char c2) {
-    for (int i = 0; i < RUS_UTF8.size(); ++i) {
-        if (RUS_UTF8[i].first == c1 && RUS_UTF8[i].second == c2)
+int findPos(unsigned char c1, unsigned char c2) { // ищем позицию символа
+    for (int i = 0; i < RUS_UTF8.size(); ++i) { //перебор алфавита
+        if (RUS_UTF8[i].first == c1 && RUS_UTF8[i].second == c2) // если 1 и 2 байт сопадают возвращают позицию
             return i;
     }
-    return -1;
+    return 1;
 }
 
 string transformText(const string& text, int key) {
     string result;
     int size = RUS_UTF8.size();
 
-    for (size_t i = 0; i < text.size(); ) {
-        if ((text[i] & 0xE0) == 0xC0 && i + 1 < text.size()) {
+    for (size_t i = 0; i < text.size(); ) {// перебор посимвольно алфавита
+        if ((text[i] & 0xE0) == 0xC0 && i + 1 < text.size()) {// Проверяем, является ли текущий символ началом русской буквы в UTF-8
             int pos = findPos(text[i], text[i + 1]);
-            if (pos != -1) {
-                int newPos = (pos + key + size) % size;
-                result += RUS_UTF8[newPos].first;
-                result += RUS_UTF8[newPos].second;
-                i += 2;
+
+            if (pos != -1) {//если русская буква
+                int newPos = (pos + key + size) % size;// новая позиция
+                result += RUS_UTF8[newPos].first;// Первый байт UTF-8
+                result += RUS_UTF8[newPos].second;// Второй байт UTF-8
+                i += 2;//пропускаем 2 байта (переход к следующему символу)
                 continue;
             }
         }
-        result += text[i];
+        result += text[i];// если не русская, то оставляем как есть
         i++;
     }
     return result;
@@ -98,11 +97,11 @@ string transformText(const string& text, int key) {
 double calculateFrequencyScore(const map<int, int>& freqMap, int totalLetters) {
     double score = 0.0;
     for (const auto& pair : freqMap) {
-        int pos = pair.first;
-        int count = pair.second;
-        double actualFreq = (count * 100.0) / totalLetters;
-        double expectedFreq = LETTER_FREQUENCY.at(pos);
-        score += min(actualFreq, expectedFreq); // Чем ближе частоты, тем выше score
+        int pos = pair.first;// Позиция буквы в алфавите
+        int count = pair.second;// Количество встреч буквы
+        double actualFreq = (count * 100.0) / totalLetters;// Вычисляем фактическую частоту буквы в тексте (%)
+        double expectedFreq = LETTER_FREQUENCY.at(pos);// Получаем ожидаемую частоту из статистики
+        score += min(actualFreq, expectedFreq); // минимальное ожидаемой и фактическрй
     }
     return score;
 }
@@ -116,9 +115,9 @@ int crackCipher(const string& encryptedText) {
         if ((encryptedText[i] & 0xE0) == 0xC0 && i + 1 < encryptedText.size()) {
             int pos = findPos(encryptedText[i], encryptedText[i + 1]);
             if (pos != -1) {
-                freqMap[pos]++;
-                totalLetters++;
-                i += 2;
+                freqMap[pos]++; // Увеличиваем счётчик для этой буквы
+                totalLetters++; // Общее количество русских букв
+                i += 2; continue; // Следующий символ 
                 continue;
             }
         }
@@ -137,12 +136,12 @@ int crackCipher(const string& encryptedText) {
     for (int key = 0; key < 33; ++key) {
         map<int, int> decryptedFreq;
 
-        // Считаем частоты для текущего ключа
+        // Для каждой буквы вычисляем её позицию после дешифровки
         for (const auto& pair : freqMap) {
-            int decryptedPos = (pair.first - key + 33) % 33;
+            int decryptedPos = (pair.first - key + 33) % 33;// +33 убираем отрицательность
             decryptedFreq[decryptedPos] = pair.second;
         }
-
+        // насколько распределение похоже на русский язык
         double score = calculateFrequencyScore(decryptedFreq, totalLetters);
 
         if (score > bestScore) {
@@ -151,9 +150,9 @@ int crackCipher(const string& encryptedText) {
         }
     }
 
-    // Проверяем, что найденный ключ дает осмысленный текст
+    //ключ дает осмысленный текст
     string testText = transformText(encryptedText, -bestKey);
-    int spaceCount = count(testText.begin(), testText.end(), ' ');
+    int spaceCount = count(testText.begin(), testText.end(), ' ');// проверка кол-ва пробелов
     if (spaceCount < testText.size() / 20) { // Минимум 5% пробелов
         cerr << "Найденный ключ не дает осмысленного текста\n";
         return 0;
@@ -164,20 +163,59 @@ int crackCipher(const string& encryptedText) {
 
 string readFile(const string& filename) {
     ifstream file(filename, ios::binary);
-    return string((istreambuf_iterator<char>(file)),
-        istreambuf_iterator<char>());
+    return string((istreambuf_iterator<char>(file)),//эффективное чтение файла целиком
+        istreambuf_iterator<char>());//Возвращает строку со всем содержимым файла
 }
 
 void writeFile(const string& filename, const string& content) {
-    ofstream file(filename, ios::binary);
-    file << "\xEF\xBB\xBF" << content;
+    ofstream file(filename, ios::binary);  // Открываем файл для записи в бинарном режиме
+    file << "\xEF\xBB\xBF" << content;    // Записываем BOM (метку порядка байтов) и содержимое
+}
+void showHelp() {
+    // Оформление рамки
+    const string border = "============================================================";
+    const string empty_line = "|                                                      |";
+
+    // Выводим красивую справку
+    cout << border << endl;
+    cout << empty_line << endl;
+    cout << "|                  СПРАВКА ПО ПРОГРАММЕ                  |" << endl;
+    cout << empty_line << endl;
+    cout << "|  Программа для шифрования/дешифрования текста методом  |" << endl;
+    cout << "|                шифра Цезаря на русском языке           |" << endl;
+    cout << empty_line << endl;
+    cout << "|  Использование:                                        |" << endl;
+    cout << "|    Шифрование:   program.exe input.txt output.txt -e -k 3 |" << endl;
+    cout << "|    Дешифровка:   program.exe encrypted.txt decrypted.txt -d -k 3 |" << endl;
+    cout << "|    Взлом шифра:  program.exe encrypted.txt decrypted.txt -c |" << endl;
+    cout << empty_line << endl;
+    cout << "|  Параметры:                                            |" << endl;
+    cout << "|    -e          Режим шифрования                        |" << endl;
+    cout << "|    -d          Режим дешифрования                      |" << endl;
+    cout << "|    -c          Режим взлома шифра                      |" << endl;
+    cout << "|    -k N        Указание ключа (сдвига)                 |" << endl;
+    cout << "|    Help        Вывод этой справки                      |" << endl;
+    cout << empty_line << endl;
+    cout << "|  Примеры:                                              |" << endl;
+    cout << "|    program.exe text.txt encrypted.txt -e -k 5          |" << endl;
+    cout << "|    program.exe encrypted.txt decrypted.txt -d -k 5     |" << endl;
+    cout << "|    program.exe encrypted.txt decrypted.txt -c          |" << endl;
+    cout << empty_line << endl;
+    cout << border << endl;
 }
 
 int main(int argc, char* argv[]) {
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
 
+    // Проверка на запрос справки
+    if (argc == 2 && string(argv[1]) == "Help") {
+        showHelp();
+        return 0;
+    }
+
     if (argc < 2) {
+        cout << "Для вывода справки введите: program.exe Help" << endl;
         cout << "Использование:\n"
             << "  Шифрование: program.exe input.txt output.txt -e -k 3\n"
             << "  Дешифровка: program.exe encrypted.txt decrypted.txt -d -k 3\n"
@@ -197,7 +235,6 @@ int main(int argc, char* argv[]) {
         else if (outputFile.empty()) outputFile = arg;
     }
 
-    try {
         string text = readFile(inputFile);
         string result;
 
@@ -220,11 +257,6 @@ int main(int argc, char* argv[]) {
 
         writeFile(outputFile, result);
         cout << "Файл успешно обработан: " << outputFile << endl;
-    }
-    catch (const exception& e) {
-        cerr << "Ошибка: " << e.what() << endl;
-        return 1;
-    }
 
     return 0;
 }
